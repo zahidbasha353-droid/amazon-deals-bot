@@ -16,22 +16,21 @@ RSS_FEEDS = [
     "https://freekaamaal.com/rss/hot-deals"
 ]
 
-# --- FAKE WEBSITE CODE START (Render ku aaga) ---
+# --- FAKE WEBSITE (RENDER UPKEEP) ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is Running! I am alive!"
+    return "I am Alive! Bot is Running..."
 
 def run():
-    # Render ethirpaarkura PORT la run pannuvom
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+    app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
     t = Thread(target=run)
     t.start()
-# --- FAKE WEBSITE CODE END ---
 
+# --- BOT LOGIC ---
 posted_deals = []
 
 def add_affiliate_tag(link):
@@ -44,40 +43,53 @@ async def send_telegram_message(title, link):
     try:
         bot = Bot(token=BOT_TOKEN)
         message = f"🔥 **{title}**\n\n👇 **Buy Now:**\n{link}"
-        await bot.send_message(
-            chat_id=CHANNEL_ID, 
-            text=message, 
-            parse_mode='Markdown',
-            read_timeout=60, 
-            write_timeout=60, 
-            connect_timeout=60
-        )
-        print(f"✅ Sent: {title}")
+        await bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode='Markdown')
+        print(f"✅ Sent Deal: {title}", flush=True)
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error sending msg: {e}", flush=True)
 
 async def check_deals():
-    print("🔍 Checking deals...")
+    print("🔍 Checking deals...", flush=True)
+    # Fake Browser Header (Anti-Block)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    
     for feed_url in RSS_FEEDS:
         try:
-            feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:3]:
+            # Using request_headers to mimic a browser
+            d = feedparser.parse(feed_url, request_headers=headers)
+            
+            if len(d.entries) == 0:
+                print(f"⚠️ No entries found in {feed_url}", flush=True)
+                continue
+
+            for entry in d.entries[:2]: # Check top 2 deals
                 if entry.title not in posted_deals:
                     final_link = add_affiliate_tag(entry.link)
                     await send_telegram_message(entry.title, final_link)
                     posted_deals.append(entry.title)
+                    # Keep memory small
+                    if len(posted_deals) > 50:
+                        posted_deals.pop(0)
                     time.sleep(2)
         except Exception as e:
-            print(f"Skipping feed due to error: {e}")
+            print(f"❌ Feed Error: {e}", flush=True)
 
 async def main():
-    print("🚀 Bot Started with Web Server!")
+    print("🚀 Bot Started! Sending Hello Message...", flush=True)
+    # Start aana udane oru Hello solluvom
+    try:
+        bot = Bot(token=BOT_TOKEN)
+        await bot.send_message(chat_id=CHANNEL_ID, text="✅ **Bot Restarted & Connected!**\nScanning for deals now...")
+    except Exception as e:
+        print(f"Startup Msg Error: {e}")
+
     await check_deals()
+    
     while True:
-        time.sleep(300) # 5 mins wait
+        # Wait 5 minutes
+        await asyncio.sleep(300) 
         await check_deals()
 
 if __name__ == "__main__":
-    # Bot start aagum bothe, Fake Website-um start aagum
     keep_alive()
     asyncio.run(main())
