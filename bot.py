@@ -1,6 +1,7 @@
 import time
 import asyncio
 import os
+import requests
 from threading import Thread
 from flask import Flask
 from telegram import Bot
@@ -11,7 +12,7 @@ BOT_TOKEN = "8144965360:AAFUjgH6Ba1STnX_Qd9Bta1UAZQi0ytgU50"
 CHANNEL_ID = "@mega_deals_offers_2025"
 AMAZON_TAG = "zahidbasha-21"
 
-# --- RELIABLE SOURCES (DesiDime - Block Aagathu) ---
+# --- SOURCES ---
 RSS_FEEDS = [
     "https://www.desidime.com/deals/top.rss",
     "https://www.desidime.com/deals/popular.rss"
@@ -22,7 +23,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is Running via DesiDime..."
+    return "Bot is Running! (Browser Mode On)"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -43,28 +44,38 @@ def add_affiliate_tag(link):
 async def send_telegram_message(title, link):
     try:
         bot = Bot(token=BOT_TOKEN)
-        # Message Format
         message = f"⚡ **{title}**\n\n🔗 **Check Deal:**\n{link}"
-        
         await bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode='Markdown')
         print(f"✅ Sent Deal: {title}", flush=True)
     except Exception as e:
         print(f"❌ Error sending msg: {e}", flush=True)
 
 async def check_deals():
-    print("🔍 Checking DesiDime Feeds...", flush=True)
-    # Browser Header
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    print("🔍 Checking DesiDime (Browser Mode)...", flush=True)
+    
+    # Strong Browser Header (Chrome on Windows)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+    }
     
     for feed_url in RSS_FEEDS:
         try:
-            d = feedparser.parse(feed_url, request_headers=headers)
+            # 1. First fetch raw data using 'requests' (Like a browser)
+            response = requests.get(feed_url, headers=headers, timeout=10)
             
-            if len(d.entries) == 0:
-                print(f"⚠️ No entries in {feed_url}", flush=True)
+            if response.status_code != 200:
+                print(f"❌ Failed to fetch {feed_url}: Status {response.status_code}", flush=True)
                 continue
 
-            # Top 3 deals
+            # 2. Parse the raw data
+            d = feedparser.parse(response.content)
+            
+            if len(d.entries) == 0:
+                print(f"⚠️ Feed parsed but empty: {feed_url}", flush=True)
+                continue
+
+            # 3. Process Deals
             for entry in d.entries[:3]:
                 if entry.title not in posted_deals:
                     final_link = add_affiliate_tag(entry.link)
@@ -75,15 +86,15 @@ async def check_deals():
                         posted_deals.pop(0)
                     time.sleep(2)
         except Exception as e:
-            print(f"❌ Feed Error: {e}", flush=True)
+            print(f"❌ Error: {e}", flush=True)
 
 async def main():
-    print("🚀 Bot Started! Tracking DesiDime Deals...", flush=True)
+    print("🚀 Bot Started! Using Advanced Fetcher...", flush=True)
     
     # Welcome Message
     try:
         bot = Bot(token=BOT_TOKEN)
-        await bot.send_message(chat_id=CHANNEL_ID, text="✅ **Safe Mode On!**\nTracking Top Deals from DesiDime...")
+        await bot.send_message(chat_id=CHANNEL_ID, text="✅ **Advanced Mode On!**\nConnecting to DesiDime via Secure Request...")
     except:
         pass
 
