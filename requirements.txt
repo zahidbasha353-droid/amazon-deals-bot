@@ -2,3 +2,7 @@ python-telegram-bot
 feedparser
 asyncio
 flask
+requests
+beautifulsoup4
+lxml
+fake_useragent
